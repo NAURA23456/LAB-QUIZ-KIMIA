@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Virtual Kimia 3D</title>
+    <!-- Tailwind CSS untuk Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js untuk Grafik 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls untuk interaksi mouse di 3D -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- FontAwesome untuk Ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { margin: 0; overflow-x: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        /* Animasi Transisi Halaman */
+        .page-section { display: none; animation: fadeIn 0.5s; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Container 3D */
+        #canvas-container { width: 100%; height: 60vh; position: relative; border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        canvas { display: block; outline: none; }
+        
+        /* Overlay UI di atas 3D */
+        .ui-overlay { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 10; flex-wrap: wrap; padding: 0 10px;}
+        
+        /* Opsi Jawaban Game */
+        .option-btn { transition: all 0.2s; }
+        .option-btn:hover { transform: scale(1.02); }
+        .correct { background-color: #10B981 !important; color: white !important; border-color: #10B981 !important; }
+        .wrong { background-color: #EF4444 !important; color: white !important; border-color: #EF4444 !important; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Navigasi -->
+    <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center gap-2 text-xl font-bold">
+                    <i class="fa-solid fa-flask text-green-400"></i>
+                    <span>ChemLab 3D</span>
+                </div>
+                <div class="flex gap-1 md:gap-4">
+                    <button onclick="navigate('home')" class="nav-btn px-3 py-2 rounded hover:bg-indigo-600 transition text-sm md:text-base"><i class="fa-solid fa-house mr-1"></i> Beranda</button>
+                    <button onclick="navigate('lab')" class="nav-btn px-3 py-2 rounded hover:bg-indigo-600 transition text-sm md:text-base"><i class="fa-solid fa-vial mr-1"></i> Lab 3D</button>
+                    <button onclick="navigate('game')" class="nav-btn px-3 py-2 rounded hover:bg-indigo-600 transition text-sm md:text-base"><i class="fa-solid fa-gamepad mr-1"></i> Mini Game</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Konten Utama -->
+    <main class="flex-grow w-full max-w-6xl mx-auto p-4 md:p-6">
+        
+        <!-- HALAMAN BERANDA -->
+        <section id="home" class="page-section active text-center pt-10">
+            <div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-xl border-t-4 border-indigo-500">
+                <i class="fa-solid fa-atom text-6xl text-indigo-500 mb-6 animate-pulse"></i>
+                <h1 class="text-4xl font-extrabold text-gray-800 mb-4">Selamat Datang di <span class="text-indigo-600">ChemLab 3D</span></h1>
+                <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                    Platform edukasi interaktif untuk mempelajari ilmu kimia secara visual. Jelajahi reaksi kimia melalui simulasi 3D interaktif dan uji pengetahuanmu melalui mini game seru!
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <button onclick="navigate('lab')" class="bg-indigo-600 hover:bg-indigo-700 text-white py-4 px-6 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-microscope text-xl"></i> Mulai Eksperimen 3D
+                    </button>
+                    <button onclick="navigate('game')" class="bg-emerald-500 hover:bg-emerald-600 text-white py-4 px-6 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-puzzle-piece text-xl"></i> Mainkan Kuis Kimia
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- HALAMAN LAB 3D -->
+        <section id="lab" class="page-section">
+            <div class="bg-white p-4 rounded-2xl shadow-lg mb-6">
+                <h2 class="text-2xl font-bold mb-2 text-indigo-800"><i class="fa-solid fa-flask"></i> Eksperimen: Indikator Asam-Basa</h2>
+                <p class="text-gray-600 text-sm mb-4">Cairan di dalam gelas kimia mengandung air dengan indikator universal (warna hijau = Netral). Tambahkan zat asam atau basa untuk melihat reaksi perubahan warna dan pelepasan gas (gelembung). Putar kamera dengan men-drag mouse.</p>
+                
+                <!-- Wadah 3D -->
+                <div id="canvas-container" class="bg-gray-900">
+                    <!-- Overlay Tombol Kontrol 3D -->
+                    <div class="ui-overlay">
+                        <button onclick="addChemical('acid')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full font-semibold shadow-lg text-sm md:text-base border-2 border-white">
+                            <i class="fa-solid fa-droplet"></i> Teteskan Asam (HCl)
+                        </button>
+                        <button onclick="addChemical('base')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-semibold shadow-lg text-sm md:text-base border-2 border-white">
+                            <i class="fa-solid fa-droplet"></i> Teteskan Basa (NaOH)
+                        </button>
+                        <button onclick="resetExperiment()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-full font-semibold shadow-lg text-sm md:text-base border-2 border-white">
+                            <i class="fa-solid fa-rotate-right"></i> Reset Netral
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="reaction-status" class="mt-4 p-4 rounded-lg bg-green-100 text-green-800 border-l-4 border-green-500 font-medium">
+                    Status saat ini: Cairan Netral (pH ~ 7)
+                </div>
+            </div>
+        </section>
+
+        <!-- HALAMAN MINI GAME -->
+        <section id="game" class="page-section">
+            <div class="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl border-t-4 border-emerald-500">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-emerald-700"><i class="fa-solid fa-brain"></i> Kuis Unsur & Senyawa</h2>
+                    <div class="bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full font-bold">
+                        Skor: <span id="score-display">0</span>
+                    </div>
+                </div>
+
+                <div id="game-start-screen" class="text-center py-10">
+                    <i class="fa-solid fa-trophy text-5xl text-yellow-400 mb-4"></i>
+                    <p class="text-lg mb-6">Uji wawasanmu tentang unsur-unsur kimia dan senyawanya. Siap?</p>
+                    <button onclick="startGame()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-md text-lg transition">Mulai Kuis</button>
+                </div>
+
+                <div id="game-play-screen" class="hidden">
+                    <div class="mb-4 flex justify-between text-sm text-gray-500 font-semibold">
+                        <span id="question-counter">Pertanyaan 1 / 5</span>
+                    </div>
+                    <h3 id="question-text" class="text-xl md:text-2xl font-bold text-gray-800 mb-6 leading-snug"></h3>
+                    
+                    <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        <!-- Tombol opsi akan digenerate via JS -->
+                    </div>
+
+                    <div id="feedback-container" class="hidden p-4 rounded-lg mb-4 text-center font-bold"></div>
+                    
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold shadow transition">
+                        Lanjut <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+
+                <div id="game-end-screen" class="hidden text-center py-8">
+                    <i class="fa-solid fa-medal text-6xl text-yellow-500 mb-4"></i>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Kuis Selesai!</h2>
+                    <p class="text-lg text-gray-600 mb-6">Kamu menjawab benar <span id="final-correct" class="font-bold text-emerald-600"></span> dari <span id="total-questions" class="font-bold"></span> pertanyaan.</p>
+                    <button onclick="resetGame()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow transition">
+                        <i class="fa-solid fa-rotate-right mr-2"></i> Main Lagi
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
+        <p>&copy; 2026 ChemLab 3D Edukasi. Dibuat dengan HTML, CSS (Tailwind), dan JS (Three.js).</p>
+    </footer>
+
+    <!-- SKRIP LOGIKA UTAMA -->
+    <script>
+        // --- 1. NAVIGASI HALAMAN ---
+        function navigate(pageId) {
+            // Sembunyikan semua section
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Tampilkan section yang dituju
+            document.getElementById(pageId).classList.add('active');
+            
+            // Inisialisasi 3D jika masuk ke tab lab dan belum terinisialisasi
+            if (pageId === 'lab' && !is3DInitialized) {
+                init3D();
+            }
+            
+            // Resize canvas saat tab lab dibuka (memperbaiki bug render canvas mengecil)
+            if (pageId === 'lab' && is3DInitialized) {
+                setTimeout(onWindowResize, 100);
+            }
+        }
+
+        // --- 2. LOGIKA EKSPrIMEN 3D (THREE.JS) ---
+        let scene, camera, renderer, controls;
+        let liquidMaterial, bubbles;
+        let is3DInitialized = false;
+        let animationId;
+        
+        // Status zat
+        const COLORS = {
+            neutral: 0x10B981, // Hijau muda (Air + indikator)
+            acid: 0xEF4444,    // Merah
+            base: 0x3B82F6     // Biru
+        };
+        let currentLiquidState = 'neutral';
+        let targetColor = new THREE.Color(COLORS.neutral);
+        let bubbleIntensity = 0; // 0 = tidak ada, 1 = bubbling
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1F2937); // gray-800
+            
+            // Kamera
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(0, 4, 10);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1; // Batasi rotasi ke bawah meja
+            controls.minDistance = 4;
+            controls.maxDistance = 15;
+            
+            // Pencahayaan
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.5);
+            pointLight.position.set(-5, 5, -5);
+            scene.add(pointLight);
+            
+            // Meja Lab
+            const tableGeo = new THREE.CylinderGeometry(6, 6, 0.4, 32);
+            const tableMat = new THREE.MeshStandardMaterial({ 
+                color: 0x4B5563, // gray-600
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const table = new THREE.Mesh(tableGeo, tableMat);
+            table.position.y = -0.2;
+            scene.add(table);
+
+            // Gelas Kimia (Beaker) - Kaca
+            const glassGeo = new THREE.CylinderGeometry(1.5, 1.5, 4, 32);
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.05,
+                transmission: 0.9, // Kaca transparan
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide
+            });
+            const glass = new THREE.Mesh(glassGeo, glassMat);
+            glass.position.y = 2;
+            scene.add(glass);
+
+            // Alas dalam gelas untuk efek tebal
+            const glassBottomGeo = new THREE.CylinderGeometry(1.48, 1.48, 0.1, 32);
+            const glassBottom = new THREE.Mesh(glassBottomGeo, glassMat);
+            glassBottom.position.y = 0.05;
+            scene.add(glassBottom);
+
+            // Cairan dalam gelas
+            const liquidGeo = new THREE.CylinderGeometry(1.45, 1.45, 2.5, 32);
+            liquidMaterial = new THREE.MeshPhysicalMaterial({
+                color: targetColor,
+                transmission: 0.6,
+                transparent: true,
+                opacity: 0.9,
+                roughness: 0.1
+            });
+            const liquid = new THREE.Mesh(liquidGeo, liquidMaterial);
+            liquid.position.y = 1.3; // Posisi setengah isi
+            scene.add(liquid);
+
+            // Sistem Partikel Gelembung
+            const particleCount = 150;
+            const bubbleGeo = new THREE.BufferGeometry();
+            const bubblePos = new Float32Array(particleCount * 3);
+            const bubbleSpeeds = new Float32Array(particleCount);
+            
+            for(let i=0; i<particleCount; i++) {
+                // Random posisi dalam silinder
+                const r = 1.3 * Math.sqrt(Math.random());
+                const theta = Math.random() * 2 * Math.PI;
+                bubblePos[i*3] = r * Math.cos(theta);     // x
+                bubblePos[i*3+1] = 0.2 + Math.random()*2; // y
+                bubblePos[i*3+2] = r * Math.sin(theta);     // z
+                
+                bubbleSpeeds[i] = 0.02 + Math.random() * 0.05;
+            }
+            
+            bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePos, 3));
+            bubbleGeo.setAttribute('speed', new THREE.BufferAttribute(bubbleSpeeds, 1));
+            
+            // Membuat material bulat untuk point menggunakan canvas
+            const circleCanvas = document.createElement('canvas');
+            circleCanvas.width = 16; circleCanvas.height = 16;
+            const context = circleCanvas.getContext('2d');
+            context.beginPath();
+            context.arc(8, 8, 8, 0, Math.PI * 2);
+            context.fillStyle = 'rgba(255,255,255,0.8)';
+            context.fill();
+            const texture = new THREE.CanvasTexture(circleCanvas);
+
+            const bubbleMat = new THREE.PointsMaterial({
+                size: 0.15,
+                map: texture,
+                transparent: true,
+                opacity: 0.0, // Awalnya tidak terlihat
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            
+            bubbles = new THREE.Points(bubbleGeo, bubbleMat);
+            scene.add(bubbles);
+
+            // Event listener resize
+            window.addEventListener('resize', onWindowResize);
+            
+            is3DInitialized = true;
+            animate3D();
+        }
+
+        function onWindowResize() {
+            if(!is3DInitialized) return;
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate3D() {
+            animationId = requestAnimationFrame(animate3D);
+            
+            controls.update();
+            
+            // Transisi Warna Halus (Lerp)
+            liquidMaterial.color.lerp(targetColor, 0.05);
+            
+            // Animasi Gelembung
+            if (bubbleIntensity > 0) {
+                bubbles.material.opacity = Math.min(0.6, bubbles.material.opacity + 0.02);
+                const positions = bubbles.geometry.attributes.position.array;
+                const speeds = bubbles.geometry.attributes.speed.array;
+                
+                for(let i=0; i<positions.length / 3; i++) {
+                    positions[i*3+1] += speeds[i]; // Naikkan Y
+                    // Jika sampai atas cairan, reset ke bawah
+                    if(positions[i*3+1] > 2.5) {
+                        positions[i*3+1] = 0.2;
+                    }
+                }
+                bubbles.geometry.attributes.position.needsUpdate = true;
+                
+                // Kurangi intensitas gelembung perlahan (efek reaksi berhenti)
+                bubbleIntensity -= 0.005;
+            } else {
+                bubbles.material.opacity = Math.max(0, bubbles.material.opacity - 0.05);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Interaksi Reaksi Kimia
+        function addChemical(type) {
+            const statusBox = document.getElementById('reaction-status');
+            bubbleIntensity = 1.0; // Aktifkan gelembung
+
+            if (type === 'acid') {
+                targetColor = new THREE.Color(COLORS.acid);
+                currentLiquidState = 'acid';
+                statusBox.className = "mt-4 p-4 rounded-lg bg-red-100 text-red-800 border-l-4 border-red-500 font-medium";
+                statusBox.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> Status: Asam Kuat (pH < 3). Reaksi indikator berubah merah dan mengeluarkan gas.";
+            } else if (type === 'base') {
+                targetColor = new THREE.Color(COLORS.base);
+                currentLiquidState = 'base';
+                statusBox.className = "mt-4 p-4 rounded-lg bg-blue-100 text-blue-800 border-l-4 border-blue-500 font-medium";
+                statusBox.innerHTML = "<i class='fa-solid fa-circle-info'></i> Status: Basa Kuat (pH > 11). Reaksi indikator berubah biru dan mengeluarkan panas/gas.";
+            }
+        }
+
+        function resetExperiment() {
+            targetColor = new THREE.Color(COLORS.neutral);
+            currentLiquidState = 'neutral';
+            bubbleIntensity = 0.5; // Sedikit gelembung saat reset
+            const statusBox = document.getElementById('reaction-status');
+            statusBox.className = "mt-4 p-4 rounded-lg bg-green-100 text-green-800 border-l-4 border-green-500 font-medium";
+            statusBox.innerHTML = "Status saat ini: Cairan Netral (pH ~ 7).";
+        }
+
+
+        // --- 3. LOGIKA MINI GAME KUIS KIMIA ---
+        const quizData = [
+            {
+                question: "Apa simbol kimia untuk unsur Emas?",
+                options: ["Ag", "Au", "Fe", "Cu"],
+                correct: 1
+            },
+            {
+                question: "Senyawa H2O lebih dikenal sebagai...",
+                options: ["Garam", "Asam Sulfat", "Air", "Alkohol"],
+                correct: 2
+            },
+            {
+                question: "Gas yang kita butuhkan untuk bernapas dan mendukung pembakaran adalah...",
+                options: ["Karbon Dioksida (CO2)", "Nitrogen (N2)", "Hidrogen (H2)", "Oksigen (O2)"],
+                correct: 3
+            },
+            {
+                question: "Natrium Klorida (NaCl) adalah nama kimia untuk bahan dapur apa?",
+                options: ["Gula", "Garam Dapur", "Baking Soda", "Cuka"],
+                correct: 1
+            },
+            {
+                question: "Zat kimia yang menyebabkan daun berwarna hijau (Klorofil) mengandung unsur logam pusat yaitu...",
+                options: ["Besi (Fe)", "Magnesium (Mg)", "Kalsium (Ca)", "Kalium (K)"],
+                correct: 1
+            }
+        ];
+
+        let currentQuestionIdx = 0;
+        let score = 0;
+        let isAnswered = false;
+
+        function startGame() {
+            document.getElementById('game-start-screen').classList.add('hidden');
+            document.getElementById('game-end-screen').classList.add('hidden');
+            document.getElementById('game-play-screen').classList.remove('hidden');
+            currentQuestionIdx = 0;
+            score = 0;
+            updateScoreDisplay();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isAnswered = false;
+            const q = quizData[currentQuestionIdx];
+            
+            document.getElementById('question-counter').innerText = `Pertanyaan ${currentQuestionIdx + 1} / ${quizData.length}`;
+            document.getElementById('question-text').innerText = q.question;
+            
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn bg-gray-50 border-2 border-gray-200 text-gray-700 py-3 px-4 rounded-xl font-medium text-left hover:border-emerald-500 hover:bg-emerald-50";
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex, btnElement) {
+            if(isAnswered) return; // Cegah klik berkali-kali
+            isAnswered = true;
+            
+            const correctIndex = quizData[currentQuestionIdx].correct;
+            const buttons = document.querySelectorAll('.option-btn');
+            const feedback = document.getElementById('feedback-container');
+            
+            // Highlight jawaban
+            if(selectedIndex === correctIndex) {
+                btnElement.classList.add('correct');
+                score += 20; // 20 poin per soal
+                updateScoreDisplay();
+                feedback.innerHTML = '<i class="fa-solid fa-circle-check"></i> Benar Sekali!';
+                feedback.className = "p-4 rounded-lg mb-4 text-center font-bold bg-green-100 text-green-700";
+            } else {
+                btnElement.classList.add('wrong');
+                buttons[correctIndex].classList.add('correct'); // Tunjukkan yang benar
+                feedback.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Jawaban Salah!';
+                feedback.className = "p-4 rounded-lg mb-4 text-center font-bold bg-red-100 text-red-700";
+            }
+            
+            feedback.classList.remove('hidden');
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIdx++;
+            if(currentQuestionIdx < quizData.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('game-play-screen').classList.add('hidden');
+            document.getElementById('game-end-screen').classList.remove('hidden');
+            
+            const correctCount = score / 20;
+            document.getElementById('final-correct').innerText = correctCount;
+            document.getElementById('total-questions').innerText = quizData.length;
+        }
+
+        function resetGame() {
+            startGame();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score-display').innerText = score;
+        }
+
+        // Inisialisasi saat window dimuat
+        window.onload = function() {
+            // Default di halaman home, tidak perlu init 3D dulu
+        };
+
+    </script>
+</body>
+</html>
